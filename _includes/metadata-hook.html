@@ -1,0 +1,46 @@
+<!-- A placeholder to allow defining custom metadata -->
+
+{%- unless site.pwa.enabled -%}
+  <!--
+    PWA devre disi. Daha once kaydedilmis service worker'lari temizler; aksi
+    halde eski worker cache-first calistigi icin sayfalar bayat kalir
+    (normal yenilemede eski surum, hard refresh'te yeni surum gorunur).
+  -->
+  <script>
+    (function () {
+      if (!('serviceWorker' in navigator)) {
+        return;
+      }
+
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        if (!registrations.length) {
+          return;
+        }
+
+        Promise.all(registrations.map(function (registration) {
+          return registration.unregister();
+        })).then(function () {
+          var reloadOnce = function () {
+            if (sessionStorage.getItem('sw-cleared')) {
+              return;
+            }
+            sessionStorage.setItem('sw-cleared', '1');
+            location.reload();
+          };
+
+          if (window.caches && caches.keys) {
+            caches.keys()
+              .then(function (keys) {
+                return Promise.all(keys.map(function (key) {
+                  return caches.delete(key);
+                }));
+              })
+              .then(reloadOnce, reloadOnce);
+          } else {
+            reloadOnce();
+          }
+        });
+      });
+    })();
+  </script>
+{%- endunless -%}

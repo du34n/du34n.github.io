@@ -44,3 +44,8 @@
     })();
   </script>
 {%- endunless -%}
+
+<!-- OSCP & Metodoloji site-geneli filter (bkz. tools/gen_search_index.py) -->
+<link rel="stylesheet" href="{{ '/assets/css/oscp-filter.css' | relative_url }}">
+<script>window.OSF_INDEX_URL = "{{ '/assets/data/oscp-index.json' | relative_url }}";</script>
+<script defer src="{{ '/assets/js/oscp-filter.js' | relative_url }}"></script>

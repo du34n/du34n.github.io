@@ -3,7 +3,8 @@ layout: compress
 ---
 [
   {% assign docs = site.pages | where: "methodology", true %}
-  {% assign all = site.posts | concat: docs %}
+  {% assign oscp_docs = site.pages | where: "oscp", true %}
+  {% assign all = site.posts | concat: docs | concat: oscp_docs %}
   {% for item in all %}
   {
     "title": {{ item.title | jsonify }},

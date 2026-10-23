@@ -1,11 +1,12 @@
 ---
-layout: page
 title: "Bölüm 5 — Linux Yetki Yükseltme"
+date: 2026-10-22 13:00:00 +0300
+categories: [OSCP, Privilege Escalation]
+tags: [linux, privesc, suid, sudo, cron, capabilities]
 oscp: true
 toc: true
 permalink: /oscp/05-linux-privesc/
 ---
-
 {% raw %}
 Bu bölüm, düşük yetkili bir Linux shell'i aldıktan sonra root'a çıkmak için kullanılan
 tekniklerin komut-first referansıdır. Akış: **manuel hızlı keşif → otomatik keşif

@@ -1,11 +1,12 @@
 ---
-layout: page
 title: "Bölüm 17 — Komut Referansı (cmd / PowerShell / Linux)"
+date: 2026-10-22 01:00:00 +0300
+categories: [OSCP, Referans]
+tags: [cheatsheet, powershell, cmd, bash, gtfobins, lolbas]
 oscp: true
 toc: true
 permalink: /oscp/17-komut-referansi/
 ---
-
 {% raw %}
 Bu bölüm, saldırı sırasında en sık gereken **yerleşik (built-in) komutların** hızlı
 referansıdır — Windows cmd, PowerShell ve Linux/bash. Kural: **araç indirmeden önce

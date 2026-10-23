@@ -1,11 +1,12 @@
 ---
-layout: page
 title: "Bölüm 11 — Servis & Protokol Enumerasyonu"
+date: 2026-10-22 07:00:00 +0300
+categories: [OSCP, Enumerasyon]
+tags: [enumeration, smb, ftp, snmp, mssql, rdp, winrm]
 oscp: true
 toc: true
 permalink: /oscp/11-servis-enumerasyon/
 ---
-
 {% raw %}
 Bu bölüm, [Bölüm 1](/oscp/01-enumerasyon/)'deki port taramasından sonra gelen
 **servis bazlı derin enum** katmanıdır. Kural: **açık her port bir hikâye

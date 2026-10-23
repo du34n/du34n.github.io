@@ -1,11 +1,12 @@
 ---
-layout: page
 title: "Bölüm 13 — Shell'ler & Payload'lar"
+date: 2026-10-22 05:00:00 +0300
+categories: [OSCP, Teknikler]
+tags: [reverse-shell, bind-shell, socat, tty, webshell]
 oscp: true
 toc: true
 permalink: /oscp/13-shell-payload/
 ---
-
 {% raw %}
 Bu bölüm, ilk komut çalıştırma yeteneğini **kararlı bir shell'e** çevirmenin tüm
 yollarını kapsar: reverse/bind shell, webshell, TTY yükseltme ve shell

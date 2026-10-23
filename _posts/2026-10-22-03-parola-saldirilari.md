@@ -1,11 +1,12 @@
 ---
-layout: page
 title: "Bölüm 3 — Parola Saldırıları & Hash Kırma"
+date: 2026-10-22 15:00:00 +0300
+categories: [OSCP, Parola Saldirilari]
+tags: [hashcat, john, hydra, pass-the-hash, wordlist]
 oscp: true
 toc: true
 permalink: /oscp/03-parola-saldirilari/
 ---
-
 {% raw %}
 Bu bölüm, elde hash/kullanıcı adı varken yapılan her şeyi kapsar: hash tespiti,
 offline kırma (hashcat/john), online brute-force (hydra), Pass-the-Hash, NTLM relay

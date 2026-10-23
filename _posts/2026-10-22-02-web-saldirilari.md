@@ -1,11 +1,12 @@
 ---
-layout: page
 title: "Bölüm 2 — Web Saldırıları"
+date: 2026-10-22 16:00:00 +0300
+categories: [OSCP, Web]
+tags: [web, sqli, xss, lfi, file-upload, command-injection]
 oscp: true
 toc: true
 permalink: /oscp/02-web-saldirilari/
 ---
-
 {% raw %}
 Bu bölüm, web yüzeyinden ilk erişim ve RCE teknikleridir. Akış: keşif → yüzey
 taraması (ffuf/dirsearch) → uygulama tespiti (whatweb/wpscan) → enjeksiyon

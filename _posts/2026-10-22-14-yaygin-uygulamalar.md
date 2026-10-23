@@ -1,11 +1,12 @@
 ---
-layout: page
 title: "Bölüm 14 — Yaygın Uygulama Saldırıları"
+date: 2026-10-22 04:00:00 +0300
+categories: [OSCP, Web]
+tags: [wordpress, tomcat, jenkins, gitlab, shellshock, drupal]
 oscp: true
 toc: true
 permalink: /oscp/14-yaygin-uygulamalar/
 ---
-
 {% raw %}
 Bu bölüm, hazır (off-the-shelf) web uygulamalarına — CMS'ler, uygulama sunucuları
 ve yönetim panelleri — saldırıyı kapsar. Kural: **önce ürünü ve sürümü parmak izle,

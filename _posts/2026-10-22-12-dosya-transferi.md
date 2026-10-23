@@ -1,11 +1,12 @@
 ---
-layout: page
 title: "Bölüm 12 — Dosya Transferi"
+date: 2026-10-22 06:00:00 +0300
+categories: [OSCP, Teknikler]
+tags: [file-transfer, smb, webdav, powershell, base64]
 oscp: true
 toc: true
 permalink: /oscp/12-dosya-transferi/
 ---
-
 {% raw %}
 Bu bölüm, saldıran makine (Kali) ile hedef arasında **araç, shell ve exploit
 taşımanın** tüm yollarını kapsar. Kural: **her yön ayrı düşünülür** — "download"

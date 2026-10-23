@@ -1,11 +1,12 @@
 ---
-layout: page
 title: "Bölüm 1 — Port Tarama & Servis Enumerasyonu"
+date: 2026-10-22 17:00:00 +0300
+categories: [OSCP, Enumerasyon]
+tags: [nmap, enumeration, smb, snmp, ldap, nfs]
 oscp: true
 toc: true
 permalink: /oscp/01-enumerasyon/
 ---
-
 {% raw %}
 Bu bölüm, hedefe ilk dokunuştan (host discovery) servis bazlı derin enum'a kadar
 olan katmandır. Kural: **önce port, sonra servis, sonra servis bazlı enum.**

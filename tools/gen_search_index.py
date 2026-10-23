@@ -9,8 +9,9 @@ Yeniden üretmek için:  python3 tools/gen_search_index.py
 import json, re, pathlib, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SOURCES = [("oscp", "OSCP"), ("methodology", "Metodoloji")]
+# OSCP notlari _posts/ icinde (oscp: true) yasar; metodoloji hala methodology/ klasorunde.
 OUT = ROOT / "assets" / "data" / "oscp-index.json"
+oscp_flag_re = re.compile(r"^oscp:\s*true\s*$", re.M)
 
 fm_re = re.compile(r"^---\s*$")
 title_re = re.compile(r'^title:\s*"?(.*?)"?\s*$')
@@ -55,23 +56,32 @@ def parse(md: pathlib.Path):
     return title, perma, out
 
 
+def collect(mds, label, index):
+    for md in mds:
+        res = parse(md)
+        if not res:
+            continue
+        title, perma, heads = res
+        page_title = title or md.stem
+        # sayfanın kendisi de bir giriş (başlığa atla)
+        index.append({"t": page_title, "p": label, "u": perma, "k": ""})
+        for h in heads:
+            index.append({"t": h["t"], "p": f"{label} · {page_title}",
+                          "u": perma, "k": h["t"]})
+
+
 def main():
     index = []
-    for folder, label in SOURCES:
-        d = ROOT / folder
-        if not d.is_dir():
-            continue
-        for md in sorted(d.glob("*.md")):
-            res = parse(md)
-            if not res:
-                continue
-            title, perma, heads = res
-            page_title = title or md.stem
-            # sayfanın kendisi de bir giriş (başlığa atla)
-            index.append({"t": page_title, "p": label, "u": perma, "k": ""})
-            for h in heads:
-                index.append({"t": h["t"], "p": f"{label} · {page_title}",
-                              "u": perma, "k": h["t"]})
+    # OSCP: _posts/ icinde oscp: true isaretli yazilar (dosya adi tarih-NN... -> bolum sirali)
+    posts = ROOT / "_posts"
+    if posts.is_dir():
+        oscp_mds = [md for md in sorted(posts.glob("*.md"))
+                    if oscp_flag_re.search(md.read_text(encoding="utf-8"))]
+        collect(oscp_mds, "OSCP", index)
+    # Metodoloji: hala methodology/ klasorunde
+    meth = ROOT / "methodology"
+    if meth.is_dir():
+        collect(sorted(meth.glob("*.md")), "Metodoloji", index)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(index, ensure_ascii=False, separators=(",", ":")),
                    encoding="utf-8")

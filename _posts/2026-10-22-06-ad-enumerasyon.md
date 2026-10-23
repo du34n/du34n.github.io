@@ -1,11 +1,12 @@
 ---
-layout: page
 title: "Bölüm 6 — Active Directory: Enumerasyon"
+date: 2026-10-22 12:00:00 +0300
+categories: [OSCP, Active Directory]
+tags: [active-directory, bloodhound, powerview, ldap, enumeration]
 oscp: true
 toc: true
 permalink: /oscp/06-ad-enumerasyon/
 ---
-
 {% raw %}
 Bu bölüm, AD hedefinde **keşiften saldırı planına** giden yolu komut-komut verir.
 Kural: **BloodHound/otomasyon aracına geçmeden önce** anonim/null oturum ve

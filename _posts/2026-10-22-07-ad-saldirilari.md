@@ -1,11 +1,12 @@
 ---
-layout: page
 title: "Bölüm 7 — AD: Kimlik Doğrulama Saldırıları, Yatay Hareket & Kalıcılık"
+date: 2026-10-22 11:00:00 +0300
+categories: [OSCP, Active Directory]
+tags: [active-directory, kerberoast, as-rep, pass-the-hash, dcsync, lateral-movement]
 oscp: true
 toc: true
 permalink: /oscp/07-ad-saldirilari/
 ---
-
 {% raw %}
 Bu bölüm, domain keşfi ([Bölüm 6](/oscp/06-ad-enumerasyon/)) sonrası aşamadır:
 elde edilen bilgi ve ilk credentialler ile kimlik doğrulama protokollerine

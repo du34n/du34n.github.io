@@ -1,11 +1,12 @@
 ---
-layout: page
 title: "Bölüm 4 — Windows Yetki Yükseltme"
+date: 2026-10-22 14:00:00 +0300
+categories: [OSCP, Privilege Escalation]
+tags: [windows, privesc, potato, services, uac]
 oscp: true
 toc: true
 permalink: /oscp/04-windows-privesc/
 ---
-
 {% raw %}
 Düşük yetkili bir shell'den (servis hesabı, IIS pool, MSSQL account, sıradan domain
 kullanıcısı) SYSTEM / local admin'e giden yol. Kural: **önce manuel enum, sonra
